@@ -73,13 +73,77 @@ def get_version_info(app)
 end
 
 def get_build_info(app)
-  builds = app.get_builds.sort_by(&:uploaded_date).reverse[0, number_of_builds]
+  builds = app.get_builds(includes: "preReleaseVersion,betaAppReviewSubmission,buildBetaDetail").sort_by(&:uploaded_date).reverse[0, number_of_builds]
+
+  # Attempt to map build IDs to their corresponding pre-release (short) version.
+  short_version_by_build_id = {}
+  begin
+    prv_list = app.get_pre_release_versions(platform: Spaceship::ConnectAPI::Platform::IOS)
+    prv_list.each do |prv|
+      sv = nil
+      begin
+        sv = prv.version
+      rescue StandardError
+        sv = nil
+      end
+      # Try to retrieve builds associated with this pre-release version
+      related_builds = []
+      begin
+        related_builds = prv.get_builds
+      rescue StandardError
+        begin
+          related_builds = prv.builds
+        rescue StandardError
+          related_builds = []
+        end
+      end
+      related_builds.each do |b|
+        begin
+          short_version_by_build_id[b.id] = sv
+        rescue StandardError
+        end
+      end
+    end
+  rescue StandardError
+    # If any of the above fails, we'll gracefully return nil short versions
+  end
 
   builds.map do |build|
+    beta_review_state = nil
+    begin
+      if build.respond_to?(:beta_app_review_submission) && build.beta_app_review_submission
+        beta_review_state = build.beta_app_review_submission.beta_review_state
+      elsif build.respond_to?(:beta_review_state)
+        beta_review_state = build.beta_review_state
+      end
+    rescue StandardError
+      beta_review_state = nil
+    end
+
+    external_build_state = nil
+    begin
+      if build.respond_to?(:build_beta_detail) && build.build_beta_detail
+        external_build_state = build.build_beta_detail.external_build_state
+      end
+    rescue StandardError
+      external_build_state = nil
+    end
+
+    short_version = nil
+    begin
+      short_version = build.app_version
+    rescue StandardError
+      short_version = short_version_by_build_id[build.id]
+    end
+
     {
-      version: build.version,
+      id: build.id,
+      version: build.version, # build number
+      short_version: short_version, # app version associated with the build
       uploaded_data: build.uploaded_date,
-      status: build.processing_state,
+      status: build.processing_state, # processing state (VALID/INVALID/PROCESSING)
+      beta_review_state: beta_review_state, # e.g., WAITING_FOR_REVIEW/IN_REVIEW/APPROVED/REJECTED
+      external_build_state: external_build_state, # e.g., READY_FOR_TESTING, BETA_EXPIRED, etc.
     }
   end
 end

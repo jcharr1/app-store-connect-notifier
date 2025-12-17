@@ -41,6 +41,8 @@ Be notified when your builds are ready to be submitted!
 
 ![](docs/assets/preview-build-status.png)
 
+Note: Build notifications now show only build-specific details (Build Version, Build Status, and Uploaded time). App-level fields like Version and App Status are not included to avoid mixing TestFlight build updates with the latest production metadata.
+
 # Set Up
 
 There are 2 versions of this service: a self-hosted version and a SaaS version — [Statused](https://statused.com/?ref=app-store-connect-notifier&?utm_source=app-store-connect-notifier&?utm_content=readme-set-up).
@@ -132,7 +134,7 @@ export NUMBER_OF_BUILDS=1
 
 Use environment variables similarly to Method 2
 
-``` bash
+```bash
 docker run \
   -e SPACESHIP_CONNECT_API_KEY="$(cat api_key.p8)" \
   -e SPACESHIP_CONNECT_API_ISSUER_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxxxxx" \
@@ -145,7 +147,7 @@ docker run \
 
 Use environment variables similarly to Method 2
 
-``` yaml
+```yaml
 services:
   app-store-connect-notifier:
     container_name: app-store-connect-notifier
